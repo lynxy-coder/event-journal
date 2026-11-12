@@ -1,0 +1,10 @@
+{
+  "name": "event-journal",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node --test tests/"
+  }
+}
