@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Журнал событий — Офис Компании Х</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>Журнал событий <span>Офис Компании Х</span></h1>
+    <div class="top-actions">
+      <label>Диспетчер <input id="user" type="text" maxlength="60" placeholder="Фамилия И."></label>
+      <button id="theme" type="button">Тема</button>
+    </div>
+  </header>
+
+  <main>
+    <form id="filters" class="filters">
+      <label>С <input type="date" name="from"></label>
+      <label>По <input type="date" name="to"></label>
+      <label>Уровень
+        <select name="level">
+          <option value="">Все</option>
+          <option value="alarm">Авария</option>
+          <option value="warning">Предупреждение</option>
+          <option value="info">Инфо</option>
+        </select>
+      </label>
+      <label>Оборудование
+        <select name="equipment"><option value="">Всё</option></select>
+      </label>
+      <label>Квитирование
+        <select name="acked">
+          <option value="">Любое</option>
+          <option value="no">Не квитированы</option>
+          <option value="yes">Квитированы</option>
+        </select>
+      </label>
+      <label class="grow">Поиск <input type="search" name="q" placeholder="текст сообщения"></label>
+      <button type="reset" id="reset">Сбросить</button>
+      <a id="csv" class="button" href="/api/events.csv">Экспорт CSV</a>
+    </form>
+
+    <section class="stats">
+      <div class="numbers" id="numbers"></div>
+      <div class="chart"><h2>Чаще всего отказывает</h2><canvas id="top-chart"></canvas></div>
+      <div class="chart"><h2>Аварии и предупреждения по часам</h2><canvas id="hours-chart"></canvas></div>
+    </section>
+
+    <section class="journal">
+      <div class="row head">
+        <div>Время</div><div>Уровень</div><div>Оборудование</div><div>Сообщение</div><div>Квитирование</div>
+      </div>
+      <div id="viewport" class="viewport">
+        <div id="spacer" class="spacer"></div>
+      </div>
+      <div id="count" class="count"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
