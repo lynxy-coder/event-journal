@@ -30,17 +30,30 @@ async function acknowledge(id) {
   }
 }
 
+let statsGen = 0; // номер последнего запроса статистики: ответы на старые запросы выбрасываем
+
 async function refreshStats() {
-  const s = await getStats(filters);
-  renderNumbers(document.getElementById('numbers'), s);
-  renderCharts(s);
+  const id = ++statsGen;
+  try {
+    const s = await getStats(filters);
+    if (id !== statsGen) return;
+    renderNumbers(document.getElementById('numbers'), s);
+    renderCharts(s);
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 async function applyFilters() {
   filters = Object.fromEntries(new FormData(form));
   document.getElementById('csv').href = csvUrl(filters);
-  const [total] = await Promise.all([table.reset(), refreshStats()]);
-  countEl.textContent = 'Найдено записей: ' + total.toLocaleString('ru-RU');
+  try {
+    const [total] = await Promise.all([table.reset(), refreshStats()]);
+    countEl.textContent = 'Найдено записей: ' + total.toLocaleString('ru-RU');
+  } catch (e) {
+    console.error(e);
+    countEl.textContent = 'Не удалось загрузить данные';
+  }
 }
 
 let timer;

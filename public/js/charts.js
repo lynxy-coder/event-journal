@@ -32,6 +32,8 @@ export function renderNumbers(el, s) {
 }
 
 export function renderCharts(s) {
+  // Chart.js грузится с CDN: без интернета графиков нет, но остальная страница должна работать
+  if (typeof Chart === 'undefined') return;
   if (topChart) topChart.destroy();
   if (hoursChart) hoursChart.destroy();
 

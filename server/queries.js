@@ -21,13 +21,26 @@ export function buildWhere(f = {}) {
     params.equipment = f.equipment;
   }
   if (f.q) {
-    parts.push('message LIKE :q');
-    params.q = '%' + f.q + '%';
+    // % и _ в тексте поиска - обычные символы, поэтому экранируем их обратным слэшем
+    parts.push("lower_u(message) LIKE :q ESCAPE '\\'");
+    params.q = '%' + f.q.toLowerCase().replace(/[\\%_]/g, '\\$&') + '%';
   }
   if (f.acked === 'no') parts.push("level != 'info' AND acked_at IS NULL");
   if (f.acked === 'yes') parts.push('acked_at IS NOT NULL');
 
   return { sql: parts.length ? 'WHERE ' + parts.join(' AND ') : '', params };
+}
+
+// limit и offset приходят из адреса, поэтому приводим их к безопасным числам
+// (отрицательный LIMIT в SQLite означает "без ограничения", а дробные числа вызывают ошибку)
+export function parsePaging(f = {}) {
+  const toInt = (v, fallback) => {
+    const n = Math.trunc(Number(v));
+    return Number.isSafeInteger(n) ? n : fallback;
+  };
+  let limit = toInt(f.limit, 100);
+  if (limit < 1) limit = 100;
+  return { limit: Math.min(limit, 500), offset: Math.max(0, toInt(f.offset, 0)) };
 }
 
 export function countEvents(db, filters) {
@@ -94,8 +107,10 @@ export function getStats(db, filters) {
 const LEVEL_RU = { info: 'Инфо', warning: 'Предупреждение', alarm: 'Авария' };
 
 function csvCell(v) {
-  const s = String(v ?? '');
-  return /[";\n]/.test(s) ? '"' + s.replaceAll('"', '""') + '"' : s;
+  let s = String(v ?? '');
+  // Excel выполняет ячейки, начинающиеся с = + - @ как формулы, поэтому ставим перед ними апостроф
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[";\r\n]/.test(s) ? '"' + s.replaceAll('"', '""') + '"' : s;
 }
 
 // ; и BOM - иначе русский Excel ломает кодировку и колонки

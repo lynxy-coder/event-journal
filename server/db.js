@@ -2,6 +2,11 @@ import { DatabaseSync } from 'node:sqlite';
 
 export function openDb(file) {
   const db = new DatabaseSync(file);
+
+  // lower() в SQLite понимает только латиницу, поэтому для поиска без учёта регистра по-русски
+  // регистрируем свою функцию на JavaScript
+  db.function('lower_u', { deterministic: true }, (s) => (typeof s === 'string' ? s.toLowerCase() : s));
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

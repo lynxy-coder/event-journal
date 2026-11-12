@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from './db.js';
 import { seedIfEmpty } from './seed.js';
 import { EQUIPMENT } from './equipment.js';
-import { listEvents, countEvents, ackEvent, getStats, csvRows } from './queries.js';
+import { listEvents, countEvents, ackEvent, getStats, csvRows, parsePaging } from './queries.js';
 
 const PORT = process.env.PORT || 3000;
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,12 @@ function json(res, data, status = 200) {
 function readBody(req) {
   return new Promise((resolve) => {
     let s = '';
-    req.on('data', (c) => (s += c));
+    req.on('data', (c) => {
+      s += c;
+      // тело запроса маленькое, больше 10 КБ не принимаем
+      if (s.length > 10000) req.destroy();
+    });
+    req.on('close', () => resolve({}));
     req.on('end', () => {
       try {
         resolve(JSON.parse(s));
@@ -49,8 +54,7 @@ async function api(req, res, url) {
   if (url.pathname === '/api/equipment') return json(res, EQUIPMENT);
 
   if (url.pathname === '/api/events' && req.method === 'GET') {
-    const offset = Math.max(0, Number(filters.offset) || 0);
-    const limit = Math.min(500, Number(filters.limit) || 100);
+    const { limit, offset } = parsePaging(filters);
     return json(res, { total: countEvents(db, filters), rows: listEvents(db, filters, offset, limit) });
   }
 
@@ -67,9 +71,11 @@ async function api(req, res, url) {
 
   const m = url.pathname.match(/^\/api\/events\/(\d+)\/ack$/);
   if (m && req.method === 'POST') {
-    const { user } = await readBody(req);
-    if (!user || !String(user).trim()) return json(res, { error: 'Укажите, кто квитирует' }, 400);
-    const ev = ackEvent(db, Number(m[1]), String(user).trim().slice(0, 60));
+    const body = await readBody(req);
+    // user должен быть строкой: массивы и объекты не принимаем
+    const user = typeof body?.user === 'string' ? body.user.trim() : '';
+    if (!user) return json(res, { error: 'Укажите, кто квитирует' }, 400);
+    const ev = ackEvent(db, Number(m[1]), user.slice(0, 60));
     if (!ev) return json(res, { error: 'Событие нельзя квитировать' }, 409);
     return json(res, ev);
   }

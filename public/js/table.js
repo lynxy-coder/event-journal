@@ -8,6 +8,7 @@ export function createTable({ viewport, spacer, loadPage, onAck }) {
   let total = 0;
   let pages = new Map();
   let loading = new Set();
+  let failed = new Set(); // страницы, которые не удалось загрузить: не просим их снова, пока не сменятся фильтры
   let gen = 0; // меняется при сбросе фильтров, старые ответы выбрасываем
 
   function getRow(i) {
@@ -16,17 +17,18 @@ export function createTable({ viewport, spacer, loadPage, onAck }) {
   }
 
   async function fetchPage(n) {
-    if (pages.has(n) || loading.has(n)) return;
+    if (pages.has(n) || loading.has(n) || failed.has(n)) return;
     loading.add(n);
     const g = gen;
     try {
       const data = await loadPage(n * PAGE, PAGE);
-      if (g !== gen) return;
-      pages.set(n, data.rows);
+      if (g === gen) pages.set(n, data.rows);
     } catch (e) {
       console.error(e);
+      if (g === gen) failed.add(n);
     } finally {
-      loading.delete(n);
+      // у старого запроса (фильтры уже сменились) нельзя трогать данные нового
+      if (g === gen) loading.delete(n);
     }
     if (g === gen) render();
   }
@@ -34,7 +36,10 @@ export function createTable({ viewport, spacer, loadPage, onAck }) {
   function rowHtml(i) {
     const e = getRow(i);
     const style = `style="top:${i * ROW_H}px"`;
-    if (!e) return `<div class="row loading" ${style}><div>Загрузка…</div></div>`;
+    if (!e) {
+      const text = failed.has(Math.floor(i / PAGE)) ? 'Не удалось загрузить, смените фильтр или обновите страницу' : 'Загрузка…';
+      return `<div class="row loading" ${style}><div>${text}</div></div>`;
+    }
 
     let ack = '';
     if (e.acked_at) ack = `<span class="acked">${escapeHtml(e.acked_by)}, ${formatTime(e.acked_at)}</span>`;
@@ -83,6 +88,7 @@ export function createTable({ viewport, spacer, loadPage, onAck }) {
       gen++;
       pages = new Map();
       loading = new Set();
+      failed = new Set();
       viewport.scrollTop = 0;
 
       const g = gen;
